@@ -25,9 +25,6 @@ bool compareKVpair(KVpair pair1, KVpair pair2){
 /** Buffer
  */
 
-Buffer::Buffer(){
-    size = 0;
-}
 
 /**
  Put the value associated with the key in the buffer
@@ -122,13 +119,6 @@ void Buffer::sort(){
  Layer
  */
 
-Layer::Layer(unsigned int nr){
-    num_runs = nr;
-    runs = new KVpair *[num_runs];
-    run_size = new int[num_runs];
-    current_run = 0;
-};
-
 /**
  Add element in the buffer to the first level of the LSM tree
  
@@ -146,7 +136,7 @@ bool Layer::add_run_from_buffer(Buffer &buffer){
     current_run++;
     //TODO: change the setter on buffer
     buffer.size = 0;
-    return current_run == num_runs;
+    return current_run == parameters::NUM_RUNS;
 };
 
 /**
@@ -154,7 +144,7 @@ bool Layer::add_run_from_buffer(Buffer &buffer){
  */
 void Layer::reset(){
     current_run = 0;
-    for(int i = 0; i < num_runs; i++){
+    for(int i = 0; i < parameters::NUM_RUNS; i++){
         run_size[i] = 0;
         delete[] runs[i];
     }
@@ -170,18 +160,18 @@ void Layer::reset(){
  */
 KVpair* Layer::merge(int &size){
     std::vector<KVpair> run_buffer;
-    int * indexes = new int[num_runs];
-    for(int i = 0; i < num_runs; i++){
+    int * indexes = new int[parameters::NUM_RUNS];
+    for(int i = 0; i < parameters::NUM_RUNS; i++){
         indexes[i] = 0;
     }
     //count the number of active arrays
-    int ct = num_runs;
+    int ct = parameters::NUM_RUNS;
     int min;
     while(ct > 0){
         std::vector<int> min_indexes;
         min = INT_MAX;
         //there is no duplicate inside each run, scan from the old runs to the new runs
-        for(int i = 0; i < num_runs; i++){
+        for(int i = 0; i < parameters::NUM_RUNS; i++){
             if(indexes[i] >= 0){
                 if(runs[i][indexes[i]].key < min){
                     min = runs[i][indexes[i]].key;
@@ -225,7 +215,7 @@ bool Layer::addRun(KVpair *run, int size){
     runs[current_run] = run;
     run_size[current_run] = size;
     current_run += 1;
-    return current_run == num_runs;
+    return current_run == parameters::NUM_RUNS;
 }
 
 

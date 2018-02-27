@@ -15,7 +15,8 @@
 namespace parameters
 {
     const unsigned int BUFFER_CAPACITY = 3;
-    const unsigned int SIZE_RATIO = 2;
+    const unsigned int SIZE_RATIO = 3;
+    const unsigned int NUM_RUNS = SIZE_RATIO;
     // ... other related constants
 }
 
@@ -31,7 +32,6 @@ class Buffer{
 public:
     unsigned int size = 0;
     KVpair data[parameters::BUFFER_CAPACITY];
-    Buffer();
     bool put(int key, int value);
     int get(int key, int& value);
     bool del(int key);
@@ -40,14 +40,12 @@ public:
 };
 
 class Layer{
-    int* run_size;
-    KVpair **runs;
-    unsigned int current_run;
+    int run_size[parameters::NUM_RUNS] = {0};
+    KVpair *runs[parameters::NUM_RUNS];
+    unsigned int current_run = 0;
     
 public:
-    unsigned int num_runs;
     void reset();
-    Layer(unsigned int num_runs);
     int get(int key, int& value);
     bool del(int key);
     bool range(int low, int high, std::vector<KVpair> *res);

@@ -64,7 +64,7 @@ void merge_test(){
     my_buffer.put(4,8);
     my_buffer.put(2,4);
     my_buffer.put(1,90);
-    Layer my_layer(2);
+    Layer my_layer;
     my_buffer.sort();
     my_layer.add_run_from_buffer(my_buffer);
     my_buffer.put(4,5);

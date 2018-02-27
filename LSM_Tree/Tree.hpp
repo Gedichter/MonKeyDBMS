@@ -14,15 +14,14 @@
 #include <vector>
 
 class Tree{
+    Buffer buffer;
+    std::vector<Layer> layers;
 
 public:
-    Buffer *buffer;
-    std::vector<Layer*> layers;
-    
     Tree();
     void flush();
     bool bufferFlush();
-    bool layerFlush(Layer *low, Layer *high);
+    bool layerFlush(Layer &low, Layer &high);
     void put(int key, int value);
     bool get(int key, int& value);
     void del(int key);

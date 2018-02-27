@@ -11,8 +11,8 @@
 #include <cmath>
 
 Tree::Tree(){
-    buffer = new Buffer();
-    layers.push_back(new Layer(parameters::SIZE_RATIO));
+    Layer layer;
+    layers.push_back(layer);
 }
 
 /**
@@ -21,8 +21,8 @@ Tree::Tree(){
  @return when true, the first layer has reached its limit
  */
 bool Tree::bufferFlush(){
-    buffer->sort();
-    return layers[0]->add_run_from_buffer(*buffer);
+    buffer.sort();
+    return layers[0].add_run_from_buffer(buffer);
 }
 
 /**
@@ -32,10 +32,10 @@ bool Tree::bufferFlush(){
  high layer to be flushed in
  @return when true, the high layer has reached its limit
  */
-bool Tree::layerFlush(Layer *low, Layer *high){
+bool Tree::layerFlush(Layer &low, Layer &high){
     int size = 0;
-    KVpair *new_run = low -> merge(size);
-    return high -> addRun(new_run, size);
+    KVpair *new_run = low.merge(size);
+    return high.addRun(new_run, size);
 };
 
 void Tree::flush(){
@@ -48,8 +48,8 @@ void Tree::flush(){
         }
         if(goOn){
             //TODO: change to getter function
-            unsigned int num_runs = ((layers.back())->num_runs)*parameters::SIZE_RATIO;
-            layers.push_back(new Layer(num_runs));
+            Layer layer;
+            layers.push_back(layer);
             layerFlush(layers.at(level), layers.at(level+1));
         }
     }
@@ -57,20 +57,20 @@ void Tree::flush(){
 }
 
 void Tree::put(int key, int value){
-    if(buffer->put(key, value)){
+    if(buffer.put(key, value)){
         flush();
     }
 };
 
 bool Tree::get(int key, int& value){
-    switch (buffer->get(key, value)) {
+    switch (buffer.get(key, value)) {
         case 1:
             return true;
         case -1:
             return false;
         default:
             for(int i = 0; i < layers.size(); i++){
-                switch (layers.at(i)->get(key, value)) {
+                switch (layers.at(i).get(key, value)) {
                     case 1:
                         return true;
                     case -1:
@@ -84,7 +84,7 @@ bool Tree::get(int key, int& value){
 };
 
 void Tree::del(int key){
-    if(buffer->del(key)){
+    if(buffer.del(key)){
         flush();
     }
 };
