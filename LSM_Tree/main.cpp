@@ -9,6 +9,7 @@
 #include <iostream>
 #include "LSM.hpp"
 #include "Tree.hpp"
+#include "Bloom_Filter.hpp"
 
 void buffer_test(){
     Buffer *my_buffer = new Buffer();
@@ -107,15 +108,53 @@ void tree_test(){
             std::cout << "Point lookup not found "<<std::endl;
         }
     }
+}
 
-
+void bloomfilter_test(){
+    BloomFilter bl = BloomFilter(100000, 10);
+    for(int i = 0; i < 5000; i+=2){
+        bl.add(i);
+    }
+    bool tp = true;
+    for(int i = 0; i < 5000; i+= 2){
+        if(!bl.possiblyContains(i)){
+            tp = false;
+            std::cout<<"false negative!"<<std::endl;
+        }
+    }
+    if(tp){
+        std::cout<<"No false negative!"<<std::endl;
+    }
+    bool tn = true;
+    for(int i = 10000; i < 20000; i+=1){
+        if(bl.possiblyContains(i)){
+            tn = false;
+            std::cout<<"false positive!"<<std::endl;
+        }
+    }
+    if(tn){
+        std::cout<<"No false positive!"<<std::endl;
+    }
+    
+    bl.reset();
+    bool rs = true;
+    for(int i = 0; i < 5000; i+= 2){
+        if(bl.possiblyContains(i)){
+            rs = false;
+            std::cout<<"Reset not succeesful!"<<std::endl;
+        }
+    }
+    if(rs){
+        std::cout<<"Reset succeesful!"<<std::endl;
+    }
 }
 
 int main(int argc, const char * argv[]) {
     //buffer_test();
     //buffer_test2();
-    tree_test();
+    //tree_test();
     //merge_test();
+    bloomfilter_test();
 }
 
 

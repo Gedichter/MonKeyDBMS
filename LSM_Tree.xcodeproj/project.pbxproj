@@ -10,6 +10,7 @@
 		59F4E6E6203E0E4600E55324 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59F4E6E5203E0E4600E55324 /* main.cpp */; };
 		59F4E6EE203E106800E55324 /* LSM.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59F4E6EC203E106800E55324 /* LSM.cpp */; };
 		59F4E6FA203F405F00E55324 /* Tree.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59F4E6F8203F405F00E55324 /* Tree.cpp */; };
+		59F4E703204C6A4700E55324 /* Bloom_Filter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59F4E701204C6A4700E55324 /* Bloom_Filter.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -31,6 +32,8 @@
 		59F4E6ED203E106800E55324 /* LSM.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = LSM.hpp; sourceTree = "<group>"; };
 		59F4E6F8203F405F00E55324 /* Tree.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Tree.cpp; sourceTree = "<group>"; };
 		59F4E6F9203F405F00E55324 /* Tree.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Tree.hpp; sourceTree = "<group>"; };
+		59F4E701204C6A4700E55324 /* Bloom_Filter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Bloom_Filter.cpp; sourceTree = "<group>"; };
+		59F4E702204C6A4700E55324 /* Bloom_Filter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Bloom_Filter.hpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -68,6 +71,8 @@
 				59F4E6ED203E106800E55324 /* LSM.hpp */,
 				59F4E6F8203F405F00E55324 /* Tree.cpp */,
 				59F4E6F9203F405F00E55324 /* Tree.hpp */,
+				59F4E701204C6A4700E55324 /* Bloom_Filter.cpp */,
+				59F4E702204C6A4700E55324 /* Bloom_Filter.hpp */,
 			);
 			path = LSM_Tree;
 			sourceTree = "<group>";
@@ -132,6 +137,7 @@
 				59F4E6EE203E106800E55324 /* LSM.cpp in Sources */,
 				59F4E6E6203E0E4600E55324 /* main.cpp in Sources */,
 				59F4E6FA203F405F00E55324 /* Tree.cpp in Sources */,
+				59F4E703204C6A4700E55324 /* Bloom_Filter.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
