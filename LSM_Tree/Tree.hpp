@@ -15,9 +15,9 @@
 
 class Tree{
     Buffer buffer;
-    std::vector<Layer> layers;
 
 public:
+    std::vector<Layer> layers;
     Tree();
     void flush();
     bool bufferFlush();

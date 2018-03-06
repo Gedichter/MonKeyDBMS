@@ -11,6 +11,9 @@
 
 #include <stdio.h>
 #include <vector>
+#include <string>
+#include <fstream>
+#include <iostream>
 
 namespace parameters
 {
@@ -39,19 +42,24 @@ public:
     bool range(int low, int high, std::vector<KVpair> &res);
 };
 
+
 class Layer{
-    int run_size[parameters::NUM_RUNS] = {0};
-    KVpair *runs[parameters::NUM_RUNS];
+    //KVpair *runs[parameters::NUM_RUNS];
+    std::string runs[parameters::NUM_RUNS];
     unsigned int current_run = 0;
+    int rank = 0;
     
 public:
+    std::string get_name(int nthRun);
+    int run_size[parameters::NUM_RUNS] = {0};
     void reset();
     int get(int key, int& value);
     bool del(int key);
     bool range(int low, int high, std::vector<KVpair> *res);
-    KVpair* merge(int& size);
+    std::string merge(int& size);
     bool add_run_from_buffer(Buffer &buffer);
-    bool addRun(KVpair *run, int size);
+    bool addRun(std::string run, int size);
+    void set_rank(int r);
     
     
 };

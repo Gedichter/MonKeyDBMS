@@ -7,108 +7,13 @@
 //
 
 #include <iostream>
+#include <string>
+#include <fstream>
 #include "LSM.hpp"
 #include "Tree.hpp"
 #include "Bloom_Filter.hpp"
 
-void buffer_test(){
-    Buffer *my_buffer = new Buffer();
-    my_buffer->put(1,1);
-    my_buffer->put(2,2);
-    my_buffer->put(3,3);
-    my_buffer->put(2,4);
-    my_buffer->del(3);
-    
-    int query = NULL;
-    std::vector<KVpair> range;
-    if(my_buffer->get(1, query)){
-        std::cout << "The value is " <<query<<std::endl;
-    }else{
-        std::cout << "Point lookup not found "<<std::endl;
-    }
-    if(my_buffer->range(2,4,range)){
-        std::cout << "The kvpair in the range are " <<std::endl;
-        for(int i = 0; i < range.size(); i++){
-            std::cout << (range.at(i)).key <<" "<<(range.at(i)).value<<std::endl;
-        }
-    }else{
-        std::cout << "range lookup not found "<<std::endl;
-    }
-}
 
-void buffer_test2(){
-    Buffer my_buffer;
-    my_buffer.put(1,1);
-    my_buffer.put(2,2);
-    my_buffer.put(3,3);
-    my_buffer.put(2,4);
-    my_buffer.del(3);
-    int query = NULL;
-    std::vector<KVpair> range;
-    if(my_buffer.get(1, query)){
-        std::cout << "The value is " <<query<<std::endl;
-    }else{
-        std::cout << "Point lookup not found "<<std::endl;
-    }
-    if(my_buffer.range(2,4,range)){
-        std::cout << "The kvpair in the range are " <<std::endl;
-        for(int i = 0; i < range.size(); i++){
-            std::cout << (range.at(i)).key <<" "<<(range.at(i)).value<<std::endl;
-        }
-    }else{
-        std::cout << "range lookup not found "<<std::endl;
-    }
-}
-
-void merge_test(){
-    Buffer my_buffer;
-    my_buffer.put(4,8);
-    my_buffer.put(2,4);
-    my_buffer.put(1,90);
-    Layer my_layer;
-    my_buffer.sort();
-    my_layer.add_run_from_buffer(my_buffer);
-    my_buffer.put(4,5);
-    my_buffer.put(5,8);
-    my_buffer.put(20,9);
-    my_buffer.sort();
-    my_layer.add_run_from_buffer(my_buffer);
-    int size;
-    KVpair* run = my_layer.merge(size);
-    std::cout<<"f";
-}
-
-
-void tree_test(){
-    Tree my_tree;
-    for(int i = 0; i < 400; i++){
-        my_tree.put(i, i-1);
-    }
-    for(int i = 0; i < 400; i+=2){
-        my_tree.put(i, i);
-    }
-    for(int i = 0; i < 100; i+=1){
-        my_tree.del(i);
-    }
-    for(int i = 0; i < 50; i++){
-        my_tree.put(i, i+5);
-    }
-    int query = NULL;
-    for(int i = 40; i < 60; i++){
-        if(my_tree.get(i, query)){
-            std::cout << "The new value is " <<query<<std::endl;
-        }else{
-            std::cout << "Point lookup not found "<<std::endl;
-        }
-    }
-    for(int i = 100; i < 120; i++){
-        if(my_tree.get(i, query)){
-            std::cout << "The new value is " <<query<<std::endl;
-        }else{
-            std::cout << "Point lookup not found "<<std::endl;
-        }
-    }
-}
 
 void bloomfilter_test(){
     BloomFilter bl = BloomFilter(100000, 10);
@@ -149,12 +54,105 @@ void bloomfilter_test(){
     }
 }
 
+void read_file(std::string name, int size){
+    std::ifstream file(name, std::ios::binary);
+    KVpair* array = new KVpair[size];
+    file.read((char*)array, size*sizeof(KVpair));
+    for(int i = 0; i < size; i++){
+        std::cout<< "one new KV entry"<<std::endl;
+        std::cout<< array[i].key <<std::endl;
+        std::cout<< array[i].value <<std::endl;
+        std::cout<< array[i].del <<std::endl;
+    }
+}
+
+
+void create_file(){
+    std::string name = "yourFile";
+    std::ofstream stream(name.c_str(), std::ios::binary);
+    KVpair array[2];
+    array[0] = {3,4,true};
+    array[1] = {7,8,false};
+    stream.write((char*) array, 2*sizeof(KVpair));
+    stream.close();
+    std::cout<<"finished"<<std::endl;
+    read_file(name, 2);
+}
+
+
+void tree_test(){
+    Tree my_tree;
+    for(int i = 0; i < 400; i++){
+        my_tree.put(i, i-1);
+    }
+    for(int i = 0; i < 400; i+=2){
+        my_tree.put(i, i);
+    }
+    for(int i = 0; i < 100; i+=1){
+        my_tree.del(i);
+    }
+    for(int i = 0; i < 50; i++){
+        my_tree.put(i, i+5);
+    }
+    int query = NULL;
+    for(int i = 40; i < 60; i++){
+        if(my_tree.get(i, query)){
+            std::cout << "The new value is " <<query<<std::endl;
+        }else{
+            std::cout << "Point lookup not found "<<std::endl;
+        }
+    }
+    for(int i = 100; i < 120; i++){
+        if(my_tree.get(i, query)){
+            std::cout << "The new value is " <<query<<std::endl;
+        }else{
+            std::cout << "Point lookup not found "<<std::endl;
+        }
+    }
+    for(int i = 0; i < my_tree.layers.size();i++){
+        std::cout<<"the layer "<<i<<std::endl;
+        for(int j = 0; j < parameters::NUM_RUNS; j++){
+            if(my_tree.layers.at(i).run_size[j] != 0){
+                std::cout<<"In the file "<<my_tree.layers.at(i).get_name(j)<<std::endl;
+                read_file(my_tree.layers.at(i).get_name(j), my_tree.layers.at(i).run_size[j]);
+            }
+        }
+    }
+}
+
+void merge_test_file(){
+    Buffer my_buffer;
+    my_buffer.put(4,8);
+    my_buffer.put(2,4);
+    my_buffer.put(1,90);
+    Layer my_layer;
+    my_buffer.sort();
+    my_layer.add_run_from_buffer(my_buffer);
+    my_buffer.put(4,5);
+    my_buffer.put(5,8);
+    my_buffer.put(20,9);
+    my_buffer.sort();
+    my_layer.add_run_from_buffer(my_buffer);
+    my_buffer.put(8,3);
+    my_buffer.put(12,34);
+    my_buffer.put(21,7);
+    my_buffer.sort();
+    my_layer.add_run_from_buffer(my_buffer);
+    int size;
+    std::string run = my_layer.merge(size);
+    read_file(run, size);
+}
+
+
+
 int main(int argc, const char * argv[]) {
-    //buffer_test();
-    //buffer_test2();
-    //tree_test();
-    //merge_test();
-    bloomfilter_test();
+    //merge_test_file();
+    //read_file("run_1_0", 3);
+    //read_file("run_1_1", 3);
+    //bloomfilter_test();
+    //create_file();
+    tree_test();
+    
 }
 
 

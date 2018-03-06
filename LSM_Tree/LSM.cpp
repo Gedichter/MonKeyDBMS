@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <assert.h>
 #include <climits>
+#include <fstream>
 
 /**
  utility function
@@ -119,6 +120,11 @@ void Buffer::sort(){
  Layer
  */
 
+void Layer::set_rank(int r){
+    rank = r;
+}
+
+
 /**
  Add element in the buffer to the first level of the LSM tree
  
@@ -126,16 +132,15 @@ void Buffer::sort(){
  @return when true, the first layer has reached its limit
  */
 bool Layer::add_run_from_buffer(Buffer &buffer){
-    runs[current_run] = new KVpair[parameters::BUFFER_CAPACITY];
+    std::string name = get_name(current_run);
+    std::ofstream run(name, std::ios::binary);
+    runs[current_run] = name;
+    run.write((char*)buffer.data, parameters::BUFFER_CAPACITY*sizeof(KVpair));
     run_size[current_run] = parameters::BUFFER_CAPACITY;
-    for(int i = 0; i < parameters::BUFFER_CAPACITY;i++){
-        runs[current_run][i].key = buffer.data[i].key;
-        runs[current_run][i].value = buffer.data[i].value;
-        runs[current_run][i].del = buffer.data[i].del;
-    }
     current_run++;
     //TODO: change the setter on buffer
     buffer.size = 0;
+    run.close();
     return current_run == parameters::NUM_RUNS;
 };
 
@@ -145,24 +150,36 @@ bool Layer::add_run_from_buffer(Buffer &buffer){
 void Layer::reset(){
     current_run = 0;
     for(int i = 0; i < parameters::NUM_RUNS; i++){
+        std::string name = get_name(i);
         run_size[i] = 0;
-        delete[] runs[i];
+        if(remove(name.c_str()) != 0){
+            std::cout<<"Error deleting the file"<<std::endl;
+        };
     }
 };
 
+std::string Layer::get_name(int nthRun){
+    return "run_" + std::to_string(rank) + "_" + std::to_string(nthRun);
+}
 
 /**
  Merge all runs to one run in this level
  NOTE: Can't use heap to do the merge sort because we need to maintain the order of runs to know
  which are the newest values
+ Use temp vector to store the merged result then write to file: minimize number of I/O
  @param size stores the size of the resulting run
  @return the pointer to the new run
  */
-KVpair* Layer::merge(int &size){
+std::string Layer::merge(int &size){
+    KVpair *read_runs[parameters::NUM_RUNS];
     std::vector<KVpair> run_buffer;
-    int * indexes = new int[parameters::NUM_RUNS];
+    int* indexes = new int[parameters::NUM_RUNS];
     for(int i = 0; i < parameters::NUM_RUNS; i++){
         indexes[i] = 0;
+        std::ifstream inStream(get_name(i), std::ios::binary);
+        read_runs[i] = new KVpair[run_size[i]];
+        inStream.read((char*)read_runs[i], run_size[i]*sizeof(KVpair));
+        inStream.close();
     }
     //count the number of active arrays
     int ct = parameters::NUM_RUNS;
@@ -173,17 +190,17 @@ KVpair* Layer::merge(int &size){
         //there is no duplicate inside each run, scan from the old runs to the new runs
         for(int i = 0; i < parameters::NUM_RUNS; i++){
             if(indexes[i] >= 0){
-                if(runs[i][indexes[i]].key < min){
-                    min = runs[i][indexes[i]].key;
+                if(read_runs[i][indexes[i]].key < min){
+                    min = read_runs[i][indexes[i]].key;
                     min_indexes.clear();
                     min_indexes.push_back(i);
-                }else if (runs[i][indexes[i]].key == min){
+                }else if (read_runs[i][indexes[i]].key == min){
                     min_indexes.push_back(i);
                 }
             }
         }
         int min_index = min_indexes.back();
-        run_buffer.push_back(runs[min_index][indexes[min_index]]);
+        run_buffer.push_back(read_runs[min_index][indexes[min_index]]);
         for(int i = 0; i < min_indexes.size(); i++){
             int cur_index = min_indexes.at(i);
             indexes[cur_index] += 1;
@@ -194,14 +211,22 @@ KVpair* Layer::merge(int &size){
             }
         }
     }
+    size = run_buffer.size();
+    std::string name = "run_" + std::to_string(rank) + "_temp";
+    std::ofstream new_file(name, std::ios::binary);
+    KVpair* new_run = new KVpair[size];
+    std::copy(run_buffer.begin(), run_buffer.end(), new_run);
+    new_file.write((char*)new_run, size*sizeof(KVpair));
+    new_file.close();
     //reset the layer, free the memory
     reset();
-    size = run_buffer.size();
-    KVpair *new_run = new KVpair[size];
-    //write the sorted vector to array
-    std::copy(run_buffer.begin(), run_buffer.end(), new_run);
     delete[] indexes;
-    return new_run;
+    for(int i = 0; i < parameters::NUM_RUNS; i++){
+        delete [] read_runs[i];
+    }
+    delete [] new_run;
+    
+    return name;
 };
 
 /**
@@ -211,8 +236,12 @@ KVpair* Layer::merge(int &size){
  size the size of the new run
  @return when true, the layer has reached its limit
  */
-bool Layer::addRun(KVpair *run, int size){
-    runs[current_run] = run;
+bool Layer::addRun(std::string run, int size){
+    std::string newName = get_name(current_run);
+    if(rename(run.c_str(), newName.c_str()) != 0){
+        std::cout << "rename failed"<<std::endl;
+    };
+    runs[current_run] = newName;
     run_size[current_run] = size;
     current_run += 1;
     return current_run == parameters::NUM_RUNS;
@@ -229,16 +258,21 @@ bool Layer::addRun(KVpair *run, int size){
 int Layer::get(int key, int& value){
     for(int i = current_run-1; i >= 0; i--){
         int cap = run_size[i];
+        KVpair* curRun = new KVpair[cap];
+        std::ifstream inStream(get_name(i), std::ios::binary);
+        inStream.read((char *)curRun, cap*sizeof(KVpair));
+        inStream.close();
         for(int j = 0; j < cap; j++){
-            if(runs[i][j].key == key){
-                if(runs[i][j].del){
+            if(curRun[j].key == key){
+                if(curRun[j].del){
                     return -1;
                 }else{
-                    value = runs[i][j].value;
+                    value = curRun[j].value;
                     return 1;
                 }
             }
         }
+        delete[] curRun;
     }
     return 0;
 };

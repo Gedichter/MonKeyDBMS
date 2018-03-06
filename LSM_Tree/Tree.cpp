@@ -12,6 +12,7 @@
 
 Tree::Tree(){
     Layer layer;
+    layer.set_rank(0);
     layers.push_back(layer);
 }
 
@@ -34,7 +35,7 @@ bool Tree::bufferFlush(){
  */
 bool Tree::layerFlush(Layer &low, Layer &high){
     int size = 0;
-    KVpair *new_run = low.merge(size);
+    std::string new_run = low.merge(size);
     return high.addRun(new_run, size);
 };
 
@@ -49,6 +50,7 @@ void Tree::flush(){
         if(goOn){
             //TODO: change to getter function
             Layer layer;
+            layer.set_rank(layers.size());
             layers.push_back(layer);
             layerFlush(layers.at(level), layers.at(level+1));
         }

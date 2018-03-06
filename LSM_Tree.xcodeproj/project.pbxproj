@@ -11,6 +11,7 @@
 		59F4E6EE203E106800E55324 /* LSM.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59F4E6EC203E106800E55324 /* LSM.cpp */; };
 		59F4E6FA203F405F00E55324 /* Tree.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59F4E6F8203F405F00E55324 /* Tree.cpp */; };
 		59F4E703204C6A4700E55324 /* Bloom_Filter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59F4E701204C6A4700E55324 /* Bloom_Filter.cpp */; };
+		59F4E706204DE22A00E55324 /* old_test.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59F4E704204DE22A00E55324 /* old_test.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -34,6 +35,8 @@
 		59F4E6F9203F405F00E55324 /* Tree.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Tree.hpp; sourceTree = "<group>"; };
 		59F4E701204C6A4700E55324 /* Bloom_Filter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Bloom_Filter.cpp; sourceTree = "<group>"; };
 		59F4E702204C6A4700E55324 /* Bloom_Filter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Bloom_Filter.hpp; sourceTree = "<group>"; };
+		59F4E704204DE22A00E55324 /* old_test.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = old_test.cpp; sourceTree = "<group>"; };
+		59F4E705204DE22A00E55324 /* old_test.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = old_test.hpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -73,6 +76,8 @@
 				59F4E6F9203F405F00E55324 /* Tree.hpp */,
 				59F4E701204C6A4700E55324 /* Bloom_Filter.cpp */,
 				59F4E702204C6A4700E55324 /* Bloom_Filter.hpp */,
+				59F4E704204DE22A00E55324 /* old_test.cpp */,
+				59F4E705204DE22A00E55324 /* old_test.hpp */,
 			);
 			path = LSM_Tree;
 			sourceTree = "<group>";
@@ -137,6 +142,7 @@
 				59F4E6EE203E106800E55324 /* LSM.cpp in Sources */,
 				59F4E6E6203E0E4600E55324 /* main.cpp in Sources */,
 				59F4E6FA203F405F00E55324 /* Tree.cpp in Sources */,
+				59F4E706204DE22A00E55324 /* old_test.cpp in Sources */,
 				59F4E703204C6A4700E55324 /* Bloom_Filter.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
