@@ -19,7 +19,6 @@
  utility function
  */
 
-//TODO change the sort so that can use reference type
 bool compareKVpair(KVpair pair1, KVpair pair2){
     return pair1.key < pair2.key;
 }
@@ -238,6 +237,7 @@ std::string Layer::merge(int &size, BloomFilter*& bf){
             }
         }
     }
+    //write to file
     size = run_buffer.size();
     std::string name = "run_" + std::to_string(rank) + "_temp";
     std::ofstream new_file(name, std::ios::binary);
@@ -245,11 +245,15 @@ std::string Layer::merge(int &size, BloomFilter*& bf){
     std::copy(run_buffer.begin(), run_buffer.end(), new_run);
     new_file.write((char*)new_run, size*sizeof(KVpair));
     new_file.close();
+    
     //create bloom filter
-    bf = new BloomFilter(size, parameters::FPRATE0*pow(parameters::SIZE_RATIO, rank));
-    for(int i = 0; i < size; i++){
-        bf->add(new_run[i].key);
+    if(rank < parameters::LEVELWITHBF-1){
+        bf = new BloomFilter(size, parameters::FPRATE0*pow(parameters::SIZE_RATIO, rank));
+        for(int i = 0; i < size; i++){
+            bf->add(new_run[i].key);
+        }
     }
+    
     //reset the layer, free the dynamic memory
     reset();
     delete[] indexes;
@@ -290,28 +294,38 @@ bool Layer::add_run(std::string run, int size, BloomFilter* bf){
  */
 int Layer::get(int key, int& value){
     for(int i = current_run-1; i >= 0; i--){
-        if(filters[i]->possiblyContains(key)){
-            int cap = run_size[i];
-            KVpair* curRun = new KVpair[cap];
-            std::ifstream inStream(get_name(i), std::ios::binary);
-            inStream.read((char *)curRun, cap*sizeof(KVpair));
-            inStream.close();
-            for(int j = 0; j < cap; j++){
-                if(curRun[j].key == key){
-                    if(curRun[j].del){
-                        return -1;
-                    }else{
-                        value = curRun[j].value;
-                        return 1;
-                    }
-                }
+        if(rank >= parameters::LEVELWITHBF){
+            int c = check_run(key, value, i);
+            if(c!=0) return c;
+        }else{
+            if(filters[i]->possiblyContains(key)){
+                int c = check_run(key, value, i);
+                if(c!=0) return c;
             }
-            delete[] curRun;
         }
-
     }
     return 0;
 };
+
+int Layer::check_run(int key, int& value, int index){
+    int cap = run_size[index];
+    KVpair* curRun = new KVpair[cap];
+    std::ifstream inStream(get_name(index), std::ios::binary);
+    inStream.read((char *)curRun, cap*sizeof(KVpair));
+    inStream.close();
+    for(int j = 0; j < cap; j++){
+        if(curRun[j].key == key){
+            if(curRun[j].del){
+                return -1;
+            }else{
+                value = curRun[j].value;
+                return 1;
+            }
+        }
+    }
+    delete[] curRun;
+    return 0;
+}
 
 
 bool range(int low, int high, std::vector<KVpair> *res);

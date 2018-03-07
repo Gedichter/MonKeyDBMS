@@ -27,6 +27,7 @@ namespace parameters
      Unit: Bytes
      */
     const int DISKPAGESIZE = 4194304;
+    const int LEVELWITHBF = 6;
     // ... other related constants
 }
 
@@ -64,6 +65,7 @@ public:
     int run_size[parameters::NUM_RUNS] = {0};
     void reset();
     int get(int key, int& value);
+    int check_run(int key, int& value, int i);
     bool del(int key);
     bool range(int low, int high, std::vector<KVpair> *res);
     std::string merge(int &size, BloomFilter*& bf);
