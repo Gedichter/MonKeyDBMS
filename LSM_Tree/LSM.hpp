@@ -14,12 +14,19 @@
 #include <string>
 #include <fstream>
 #include <iostream>
+#include "Bloom_Filter.hpp"
 
 namespace parameters
 {
     const unsigned int BUFFER_CAPACITY = 3;
     const unsigned int SIZE_RATIO = 3;
     const unsigned int NUM_RUNS = SIZE_RATIO;
+    const double FPRATE0 = 0.001;
+    /*
+     reference: https://apple.stackexchange.com/questions/78802/what-are-the-sector-sizes-on-mac-os-x
+     Unit: Bytes
+     */
+    const int DISKPAGESIZE = 4194304;
     // ... other related constants
 }
 
@@ -42,25 +49,27 @@ public:
     bool range(int low, int high, std::vector<KVpair> &res);
 };
 
+BloomFilter* create_bloom_filter(KVpair* run, unsigned long int numEntries, double falPosRate);
 
 class Layer{
     //KVpair *runs[parameters::NUM_RUNS];
     std::string runs[parameters::NUM_RUNS];
     unsigned int current_run = 0;
     int rank = 0;
+    BloomFilter *filters[parameters::NUM_RUNS];
     
 public:
+    Layer();
     std::string get_name(int nthRun);
     int run_size[parameters::NUM_RUNS] = {0};
     void reset();
     int get(int key, int& value);
     bool del(int key);
     bool range(int low, int high, std::vector<KVpair> *res);
-    std::string merge(int& size);
+    std::string merge(int &size, BloomFilter*& bf);
     bool add_run_from_buffer(Buffer &buffer);
-    bool addRun(std::string run, int size);
+    bool add_run(std::string run, int size, BloomFilter* bf);
     void set_rank(int r);
-    
     
 };
 #endif /* LSM_hpp */

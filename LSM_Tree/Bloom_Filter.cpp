@@ -7,6 +7,7 @@
 //
 
 #include "Bloom_Filter.hpp"
+#include <math.h>
 
 /*
  false positive error rate:p
@@ -21,8 +22,9 @@
  m = -(n*ln(p))/ln^2(2), k = (m/n)*ln(2)
  TODO: can write a bloom filter parameter struct to compute parameters
  */
-BloomFilter::BloomFilter(unsigned long int numBits, unsigned int numHashes){
-    m_numHashes = numHashes;
+BloomFilter::BloomFilter(unsigned long int numEntries, double falsePosRate){
+    unsigned long int numBits = (-1)*(numEntries*log(falsePosRate))/(log(2)*log(2));
+    m_numHashes = (int)(numBits/numEntries)*log(2) + 0.5; //type cast always truncates
     m_bits = std::vector<bool>(numBits);
     prime = generate_prime();
     srand(SEED);

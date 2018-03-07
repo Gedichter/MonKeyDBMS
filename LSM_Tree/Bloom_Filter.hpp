@@ -17,7 +17,7 @@
  definition of Bloom filter for inserting integer
  */
 class BloomFilter {
-    const int SEED = 123454;
+    
     unsigned int m_numHashes;
     std::vector<bool> m_bits;
     unsigned long int prime;
@@ -58,7 +58,8 @@ class BloomFilter {
     
     
 public:
-    BloomFilter(unsigned long int size, unsigned int numHashes);
+    const int SEED = 123454;
+    BloomFilter(unsigned long int numEntries, double falsePosRate);
     void add(int data);
     bool possiblyContains(int data);
     void reset();

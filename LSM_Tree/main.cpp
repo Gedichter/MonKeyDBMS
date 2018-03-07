@@ -16,7 +16,7 @@
 
 
 void bloomfilter_test(){
-    BloomFilter bl = BloomFilter(100000, 10);
+    BloomFilter bl = BloomFilter(20000, 0.01);
     for(int i = 0; i < 5000; i+=2){
         bl.add(i);
     }
@@ -139,7 +139,8 @@ void merge_test_file(){
     my_buffer.sort();
     my_layer.add_run_from_buffer(my_buffer);
     int size;
-    std::string run = my_layer.merge(size);
+    BloomFilter *bf = NULL;
+    std::string run = my_layer.merge(size, bf);
     read_file(run, size);
 }
 

@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <climits>
 #include <fstream>
+#include <cmath>
 
 /**
  utility function
@@ -22,6 +23,21 @@
 bool compareKVpair(KVpair pair1, KVpair pair2){
     return pair1.key < pair2.key;
 }
+
+/*
+ Create a bloom filter for the run
+ @param run the array of the KVpairs in a run
+ numBits the filter size in bits:m
+ numHashes number of hash functions in a filter:k
+ @return the pointer to the bloom filter
+ */
+BloomFilter* create_bloom_filter(KVpair* run, unsigned long int numEntries, double falPosRate){
+    BloomFilter* filter = new BloomFilter(numEntries, falPosRate);
+    for(int i = 0; i < numEntries; i++){
+        filter->add(run[i].key);
+    }
+    return filter;
+};
 
 /** Buffer
  */
@@ -120,10 +136,17 @@ void Buffer::sort(){
  Layer
  */
 
+
+Layer::Layer(){
+    for(int i = 0; i < parameters::NUM_RUNS; i++){
+        filters[i] = NULL;
+    }
+}
+
+
 void Layer::set_rank(int r){
     rank = r;
 }
-
 
 /**
  Add element in the buffer to the first level of the LSM tree
@@ -132,6 +155,7 @@ void Layer::set_rank(int r){
  @return when true, the first layer has reached its limit
  */
 bool Layer::add_run_from_buffer(Buffer &buffer){
+    filters[current_run] = create_bloom_filter(buffer.data, parameters::BUFFER_CAPACITY, parameters::FPRATE0);
     std::string name = get_name(current_run);
     std::ofstream run(name, std::ios::binary);
     runs[current_run] = name;
@@ -150,8 +174,11 @@ bool Layer::add_run_from_buffer(Buffer &buffer){
 void Layer::reset(){
     current_run = 0;
     for(int i = 0; i < parameters::NUM_RUNS; i++){
-        std::string name = get_name(i);
         run_size[i] = 0;
+        delete filters[i];
+        filters[i] = NULL;
+        runs[i].clear();
+        std::string name = get_name(i);
         if(remove(name.c_str()) != 0){
             std::cout<<"Error deleting the file"<<std::endl;
         };
@@ -168,9 +195,9 @@ std::string Layer::get_name(int nthRun){
  which are the newest values
  Use temp vector to store the merged result then write to file: minimize number of I/O
  @param size stores the size of the resulting run
- @return the pointer to the new run
+ @return the name of the file of the new run
  */
-std::string Layer::merge(int &size){
+std::string Layer::merge(int &size, BloomFilter*& bf){
     KVpair *read_runs[parameters::NUM_RUNS];
     std::vector<KVpair> run_buffer;
     int* indexes = new int[parameters::NUM_RUNS];
@@ -218,7 +245,12 @@ std::string Layer::merge(int &size){
     std::copy(run_buffer.begin(), run_buffer.end(), new_run);
     new_file.write((char*)new_run, size*sizeof(KVpair));
     new_file.close();
-    //reset the layer, free the memory
+    //create bloom filter
+    bf = new BloomFilter(size, parameters::FPRATE0*pow(parameters::SIZE_RATIO, rank));
+    for(int i = 0; i < size; i++){
+        bf->add(new_run[i].key);
+    }
+    //reset the layer, free the dynamic memory
     reset();
     delete[] indexes;
     for(int i = 0; i < parameters::NUM_RUNS; i++){
@@ -236,13 +268,14 @@ std::string Layer::merge(int &size){
  size the size of the new run
  @return when true, the layer has reached its limit
  */
-bool Layer::addRun(std::string run, int size){
+bool Layer::add_run(std::string run, int size, BloomFilter* bf){
     std::string newName = get_name(current_run);
     if(rename(run.c_str(), newName.c_str()) != 0){
         std::cout << "rename failed"<<std::endl;
     };
     runs[current_run] = newName;
     run_size[current_run] = size;
+    filters[current_run] = bf;
     current_run += 1;
     return current_run == parameters::NUM_RUNS;
 }
@@ -257,32 +290,31 @@ bool Layer::addRun(std::string run, int size){
  */
 int Layer::get(int key, int& value){
     for(int i = current_run-1; i >= 0; i--){
-        int cap = run_size[i];
-        KVpair* curRun = new KVpair[cap];
-        std::ifstream inStream(get_name(i), std::ios::binary);
-        inStream.read((char *)curRun, cap*sizeof(KVpair));
-        inStream.close();
-        for(int j = 0; j < cap; j++){
-            if(curRun[j].key == key){
-                if(curRun[j].del){
-                    return -1;
-                }else{
-                    value = curRun[j].value;
-                    return 1;
+        if(filters[i]->possiblyContains(key)){
+            int cap = run_size[i];
+            KVpair* curRun = new KVpair[cap];
+            std::ifstream inStream(get_name(i), std::ios::binary);
+            inStream.read((char *)curRun, cap*sizeof(KVpair));
+            inStream.close();
+            for(int j = 0; j < cap; j++){
+                if(curRun[j].key == key){
+                    if(curRun[j].del){
+                        return -1;
+                    }else{
+                        value = curRun[j].value;
+                        return 1;
+                    }
                 }
             }
+            delete[] curRun;
         }
-        delete[] curRun;
+
     }
     return 0;
 };
 
 
 bool range(int low, int high, std::vector<KVpair> *res);
-
-
-
-
 
 
 

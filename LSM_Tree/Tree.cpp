@@ -35,8 +35,9 @@ bool Tree::bufferFlush(){
  */
 bool Tree::layerFlush(Layer &low, Layer &high){
     int size = 0;
-    std::string new_run = low.merge(size);
-    return high.addRun(new_run, size);
+    BloomFilter *bf = NULL;
+    std::string new_run = low.merge(size, bf);
+    return high.add_run(new_run, size, bf);
 };
 
 void Tree::flush(){
