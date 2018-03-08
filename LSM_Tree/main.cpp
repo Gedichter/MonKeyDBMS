@@ -109,15 +109,15 @@ void tree_test(){
             std::cout << "Point lookup not found "<<std::endl;
         }
     }
-    for(int i = 0; i < my_tree.layers.size();i++){
-        std::cout<<"the layer "<<i<<std::endl;
-        for(int j = 0; j < parameters::NUM_RUNS; j++){
-            if(my_tree.layers.at(i).run_size[j] != 0){
-                std::cout<<"In the file "<<my_tree.layers.at(i).get_name(j)<<std::endl;
-                read_file(my_tree.layers.at(i).get_name(j), my_tree.layers.at(i).run_size[j]);
-            }
-        }
-    }
+//    for(int i = 0; i < my_tree.layers.size();i++){
+//        std::cout<<"the layer "<<i<<std::endl;
+//        for(int j = 0; j < parameters::NUM_RUNS; j++){
+//            if(my_tree.layers.at(i).run_size[j] != 0){
+//                std::cout<<"In the file "<<my_tree.layers.at(i).get_name(j)<<std::endl;
+//                read_file(my_tree.layers.at(i).get_name(j), my_tree.layers.at(i).run_size[j]);
+//            }
+//        }
+//    }
 }
 
 void merge_test_file(){
@@ -140,8 +140,10 @@ void merge_test_file(){
     my_layer.add_run_from_buffer(my_buffer);
     int size;
     BloomFilter *bf = NULL;
-    std::string run = my_layer.merge(size, bf);
-    read_file(run, size);
+    FencePointer *fp = NULL;
+    int num_pointers;
+    //std::string run = my_layer.merge(size, bf);
+    //read_file(run, size);
 }
 
 

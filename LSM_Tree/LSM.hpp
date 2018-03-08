@@ -16,6 +16,19 @@
 #include <iostream>
 #include "Bloom_Filter.hpp"
 
+struct KVpair{
+    int key;
+    int value;
+    bool del;
+};
+
+bool compareKVpair(KVpair pair1, KVpair pair2);
+
+struct FencePointer{
+    int min;
+    int max;
+};
+
 namespace parameters
 {
     const unsigned int BUFFER_CAPACITY = 3;
@@ -26,18 +39,11 @@ namespace parameters
      reference: https://apple.stackexchange.com/questions/78802/what-are-the-sector-sizes-on-mac-os-x
      Unit: Bytes
      */
-    const int DISKPAGESIZE = 4194304;
+    const unsigned long int KVPAIRPERPAGE = 64/sizeof(KVpair);
     const int LEVELWITHBF = 6;
     // ... other related constants
 }
 
-struct KVpair{
-    int key;
-    int value;
-    bool del;
-};
-
-bool compareKVpair(KVpair pair1, KVpair pair2);
 
 class Buffer{
 public:
@@ -53,24 +59,27 @@ public:
 BloomFilter* create_bloom_filter(KVpair* run, unsigned long int numEntries, double falPosRate);
 
 class Layer{
-    //KVpair *runs[parameters::NUM_RUNS];
     std::string runs[parameters::NUM_RUNS];
     unsigned int current_run = 0;
     int rank = 0;
     BloomFilter *filters[parameters::NUM_RUNS];
+    FencePointer *pointers[parameters::NUM_RUNS]  = {NULL};
+    int pointer_size[parameters::NUM_RUNS] = {0};
     
 public:
+    unsigned long int run_size[parameters::NUM_RUNS] = {0};
+    
+    
     Layer();
     std::string get_name(int nthRun);
-    int run_size[parameters::NUM_RUNS] = {0};
     void reset();
     int get(int key, int& value);
     int check_run(int key, int& value, int i);
     bool del(int key);
     bool range(int low, int high, std::vector<KVpair> *res);
-    std::string merge(int &size, BloomFilter*& bf);
+    std::string merge(int &size, BloomFilter*& bf, FencePointer*& fp, int &num_pointers);
     bool add_run_from_buffer(Buffer &buffer);
-    bool add_run(std::string run, int size, BloomFilter* bf);
+    bool add_run(std::string run, int size, BloomFilter* bf, FencePointer* fp, int num_pointers);
     void set_rank(int r);
     
 };

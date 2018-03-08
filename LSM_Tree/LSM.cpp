@@ -38,6 +38,24 @@ BloomFilter* create_bloom_filter(KVpair* run, unsigned long int numEntries, doub
     return filter;
 };
 
+/*
+ Create an array of fence pointer for the run
+ Called only when the size of the run is greater than parameters::KVPAIRPERPAGE
+ @param run is the array of the KVpairs in a run
+ size is the length of the run
+ num_pointers stores the number of fence pointers in the array
+ @return the pointer to the array
+ */
+FencePointer* create_fence_pointer(KVpair* run, unsigned long int size, int& num_pointers){
+    num_pointers = (int)ceil((double)size/(double)parameters::KVPAIRPERPAGE);
+    FencePointer* fparray = new FencePointer[num_pointers];
+    for(int i = 0; i < num_pointers; i++){
+        fparray[i].min = run[i*parameters::KVPAIRPERPAGE].key;
+        fparray[i].max = run[std::min((i+1)*parameters::KVPAIRPERPAGE-1, size-1)].key;
+    }
+    return fparray;
+}
+
 /** Buffer
  */
 
@@ -154,27 +172,41 @@ void Layer::set_rank(int r){
  @return when true, the first layer has reached its limit
  */
 bool Layer::add_run_from_buffer(Buffer &buffer){
+    //Bloom filter
     filters[current_run] = create_bloom_filter(buffer.data, parameters::BUFFER_CAPACITY, parameters::FPRATE0);
+    //Fence pointer
+    if(parameters::BUFFER_CAPACITY > parameters::KVPAIRPERPAGE){
+        int numPointers = 0;
+        pointers[current_run] = create_fence_pointer(buffer.data, parameters::BUFFER_CAPACITY, numPointers);
+        pointer_size[current_run] = numPointers;
+    }
+    //write to file
     std::string name = get_name(current_run);
     std::ofstream run(name, std::ios::binary);
     runs[current_run] = name;
     run.write((char*)buffer.data, parameters::BUFFER_CAPACITY*sizeof(KVpair));
     run_size[current_run] = parameters::BUFFER_CAPACITY;
     current_run++;
+    run.close();
     //TODO: change the setter on buffer
     buffer.size = 0;
-    run.close();
     return current_run == parameters::NUM_RUNS;
 };
 
+
 /**
- Reset the layer, free memory
+ Reset the layer, free memory, delete file
  */
 void Layer::reset(){
     current_run = 0;
     for(int i = 0; i < parameters::NUM_RUNS; i++){
         run_size[i] = 0;
+        pointer_size[i] = 0;
         delete filters[i];
+        if(pointers[i] != NULL){
+            delete [] pointers[i];
+            pointers[i] = NULL;
+        }
         filters[i] = NULL;
         runs[i].clear();
         std::string name = get_name(i);
@@ -196,9 +228,9 @@ std::string Layer::get_name(int nthRun){
  @param size stores the size of the resulting run
  @return the name of the file of the new run
  */
-std::string Layer::merge(int &size, BloomFilter*& bf){
+std::string Layer::merge(int &size, BloomFilter*& bf, FencePointer*& fp, int &num_pointers){
+    //read files and set index
     KVpair *read_runs[parameters::NUM_RUNS];
-    std::vector<KVpair> run_buffer;
     int* indexes = new int[parameters::NUM_RUNS];
     for(int i = 0; i < parameters::NUM_RUNS; i++){
         indexes[i] = 0;
@@ -207,8 +239,9 @@ std::string Layer::merge(int &size, BloomFilter*& bf){
         inStream.read((char*)read_runs[i], run_size[i]*sizeof(KVpair));
         inStream.close();
     }
-    //count the number of active arrays
-    int ct = parameters::NUM_RUNS;
+    //perform merge
+    std::vector<KVpair> run_buffer;
+    int ct = parameters::NUM_RUNS; //the count of active arrays
     int min;
     while(ct > 0){
         std::vector<int> min_indexes;
@@ -237,23 +270,26 @@ std::string Layer::merge(int &size, BloomFilter*& bf){
             }
         }
     }
-    //write to file
+    //set the new size, create array
     size = run_buffer.size();
+    KVpair* new_run = new KVpair[size];
+    //write to file
     std::string name = "run_" + std::to_string(rank) + "_temp";
     std::ofstream new_file(name, std::ios::binary);
-    KVpair* new_run = new KVpair[size];
     std::copy(run_buffer.begin(), run_buffer.end(), new_run);
     new_file.write((char*)new_run, size*sizeof(KVpair));
     new_file.close();
-    
-    //create bloom filter
+    //create bloom filter TODO: change to create_bloom_filter function!!
     if(rank < parameters::LEVELWITHBF-1){
         bf = new BloomFilter(size, parameters::FPRATE0*pow(parameters::SIZE_RATIO, rank));
         for(int i = 0; i < size; i++){
             bf->add(new_run[i].key);
         }
     }
-    
+    //create fence pointer
+    if(size > parameters::KVPAIRPERPAGE){
+        fp = create_fence_pointer(new_run, size, num_pointers);
+    }
     //reset the layer, free the dynamic memory
     reset();
     delete[] indexes;
@@ -272,7 +308,7 @@ std::string Layer::merge(int &size, BloomFilter*& bf){
  size the size of the new run
  @return when true, the layer has reached its limit
  */
-bool Layer::add_run(std::string run, int size, BloomFilter* bf){
+bool Layer::add_run(std::string run, int size, BloomFilter* bf, FencePointer* fp, int num_pointers){
     std::string newName = get_name(current_run);
     if(rename(run.c_str(), newName.c_str()) != 0){
         std::cout << "rename failed"<<std::endl;
@@ -280,6 +316,8 @@ bool Layer::add_run(std::string run, int size, BloomFilter* bf){
     runs[current_run] = newName;
     run_size[current_run] = size;
     filters[current_run] = bf;
+    pointers[current_run] = fp;
+    pointer_size[current_run] = num_pointers;
     current_run += 1;
     return current_run == parameters::NUM_RUNS;
 }
@@ -287,7 +325,6 @@ bool Layer::add_run(std::string run, int size, BloomFilter* bf){
 
 /**
  a basic implementation of get
- TODO: change to binary search, Bloom filter + fence pointer
  @return 1: found
  0: not found
  -1: (latest version)deleted, which means no need to go on searching
@@ -308,12 +345,32 @@ int Layer::get(int key, int& value){
 };
 
 int Layer::check_run(int key, int& value, int index){
-    int cap = run_size[index];
-    KVpair* curRun = new KVpair[cap];
+    //indexes for the fence pointer
+    unsigned long int offset = 0;
+    bool valid = false;
+    //check the fence pointer
+    if(pointers[index] != NULL){
+        for(int i = 0; i < pointer_size[index]; i++){
+            if(key>= pointers[index][i].min && key <= pointers[index][i].max){
+                offset = i*parameters::KVPAIRPERPAGE;
+                valid = true;
+                break;
+            }
+        }
+        if(!valid) return 0;
+    }
+    //read the needed page from the file
+    int read_size = run_size[index];
+    if(valid){
+        read_size = std::min(parameters::KVPAIRPERPAGE, (run_size[index]-offset));
+    }
+    KVpair* curRun = new KVpair[read_size];
     std::ifstream inStream(get_name(index), std::ios::binary);
-    inStream.read((char *)curRun, cap*sizeof(KVpair));
+    inStream.seekg(offset*sizeof(KVpair));
+    inStream.read((char *)curRun, read_size*sizeof(KVpair));
     inStream.close();
-    for(int j = 0; j < cap; j++){
+    //TODO: change to binary search
+    for(int j = 0; j < read_size; j++){
         if(curRun[j].key == key){
             if(curRun[j].del){
                 return -1;

@@ -34,10 +34,12 @@ bool Tree::bufferFlush(){
  @return when true, the high layer has reached its limit
  */
 bool Tree::layerFlush(Layer &low, Layer &high){
+    int num_pointers = 0;
     int size = 0;
     BloomFilter *bf = NULL;
-    std::string new_run = low.merge(size, bf);
-    return high.add_run(new_run, size, bf);
+    FencePointer *fp = NULL;
+    std::string new_run = low.merge(size, bf, fp, num_pointers);
+    return high.add_run(new_run, size, bf, fp, num_pointers);
 };
 
 void Tree::flush(){
