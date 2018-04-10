@@ -12,8 +12,9 @@
 #include "LSM.hpp"
 #include "Tree.hpp"
 #include "Bloom_Filter.hpp"
+#include <chrono>
 
-
+using namespace std::chrono;
 
 void bloomfilter_test(){
     BloomFilter bl = BloomFilter(20000, 0.01);
@@ -120,6 +121,7 @@ void tree_test(){
 //    }
 }
 
+
 void merge_test_file(){
     Buffer my_buffer;
     my_buffer.put(4,8);
@@ -146,6 +148,48 @@ void merge_test_file(){
     //read_file(run, size);
 }
 
+void main_test(){
+    Tree my_tree;
+    std::ifstream file ("workload_20_1.txt");
+    char action;
+    int key, value;
+    
+    std::ofstream out("out.txt");
+    std::streambuf *coutbuf = std::cout.rdbuf(); //save old buf
+    std::cout.rdbuf(out.rdbuf()); //redirect std::cout to out.txt!
+
+    high_resolution_clock::time_point t1 = high_resolution_clock::now();
+    if (file.is_open()) {
+        while (!file.eof()) {
+            file >> action;
+            if (action == 'p') {
+                file >> key;
+                file >> value;
+                my_tree.put(key, value);
+            }
+            else if (action == 'g') {
+                file >> key;
+                int query = NULL;
+                if(my_tree.get(key, query)){
+                    std::cout <<query<<std::endl;
+                }else{
+                    std::cout<<std::endl;
+                }
+            }else if (action == 'd') {
+                file >> key;
+                my_tree.del(key);
+            }else {
+                std::cout << "Error";
+            }
+        }
+        high_resolution_clock::time_point t2 = high_resolution_clock::now();
+        auto duration = duration_cast<microseconds>( t2 - t1 ).count();
+        std::cout << "-----------------------------------------------------" << std::endl;
+        std::cout << "The elapsed time is " << duration << std::endl;
+        file.close();
+        //std::cout << "All operations finished"<<std::endl;
+    }
+}
 
 
 int main(int argc, const char * argv[]) {
@@ -154,8 +198,8 @@ int main(int argc, const char * argv[]) {
     //read_file("run_1_1", 3);
     //bloomfilter_test();
     //create_file();
-    tree_test();
-    
+    main_test();
+    //tree_test();
 }
 
 

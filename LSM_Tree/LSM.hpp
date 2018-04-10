@@ -31,16 +31,16 @@ struct FencePointer{
 
 namespace parameters
 {
-    const unsigned int BUFFER_CAPACITY = 3;
-    const unsigned int SIZE_RATIO = 3;
+    const unsigned int BUFFER_CAPACITY = 1024;
+    const unsigned int SIZE_RATIO = 16;
     const unsigned int NUM_RUNS = SIZE_RATIO;
     const double FPRATE0 = 0.001;
     /*
      reference: https://apple.stackexchange.com/questions/78802/what-are-the-sector-sizes-on-mac-os-x
      Unit: Bytes
      */
-    const unsigned long int KVPAIRPERPAGE = 64/sizeof(KVpair);
-    const int LEVELWITHBF = 6;
+    const unsigned long int KVPAIRPERPAGE = 4096/sizeof(KVpair);
+    const int LEVELWITHBF = 8;
     // ... other related constants
 }
 
@@ -68,8 +68,6 @@ class Layer{
     
 public:
     unsigned long int run_size[parameters::NUM_RUNS] = {0};
-    
-    
     Layer();
     std::string get_name(int nthRun);
     void reset();
