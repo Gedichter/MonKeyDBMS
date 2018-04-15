@@ -25,6 +25,7 @@ public:
     void put(int key, int value);
     bool get(int key, int& value);
     void del(int key);
+    std::vector<KVpair> range(int low, int high);
     
 };
 

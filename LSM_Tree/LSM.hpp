@@ -14,6 +14,7 @@
 #include <string>
 #include <fstream>
 #include <iostream>
+#include <unordered_map>
 #include "Bloom_Filter.hpp"
 
 struct KVpair{
@@ -21,6 +22,7 @@ struct KVpair{
     int value;
     bool del;
 };
+
 
 bool compareKVpair(KVpair pair1, KVpair pair2);
 
@@ -31,8 +33,8 @@ struct FencePointer{
 
 namespace parameters
 {
-    const unsigned int BUFFER_CAPACITY = 1024;
-    const unsigned int SIZE_RATIO = 16;
+    const unsigned int BUFFER_CAPACITY = 128;
+    const unsigned int SIZE_RATIO = 8;
     const unsigned int NUM_RUNS = SIZE_RATIO;
     const double FPRATE0 = 0.001;
     /*
@@ -53,7 +55,7 @@ public:
     int get(int key, int& value);
     bool del(int key);
     void sort();
-    bool range(int low, int high, std::vector<KVpair> &res);
+    void range(int low, int high, std::unordered_map<int, KVpair>& res);
 };
 
 BloomFilter* create_bloom_filter(KVpair* run, unsigned long int numEntries, double falPosRate);
@@ -74,11 +76,12 @@ public:
     int get(int key, int& value);
     int check_run(int key, int& value, int i);
     bool del(int key);
-    bool range(int low, int high, std::vector<KVpair> *res);
-    std::string merge(int &size, BloomFilter*& bf, FencePointer*& fp, int &num_pointers);
+    void range(int low, int high, std::unordered_map<int, KVpair>& range_buffer);
+    std::string merge(unsigned long &size, BloomFilter*& bf, FencePointer*& fp, int &num_pointers);
     bool add_run_from_buffer(Buffer &buffer);
-    bool add_run(std::string run, int size, BloomFilter* bf, FencePointer* fp, int num_pointers);
+    bool add_run(std::string run, unsigned long size, BloomFilter* bf, FencePointer* fp, int num_pointers);
     void set_rank(int r);
+    void range_run(int low, int high, std::unordered_map<int, KVpair>& range_buffer, int index);
     
 };
 #endif /* LSM_hpp */

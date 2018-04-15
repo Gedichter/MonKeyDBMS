@@ -140,21 +140,21 @@ void merge_test_file(){
     my_buffer.put(21,7);
     my_buffer.sort();
     my_layer.add_run_from_buffer(my_buffer);
-    int size;
-    BloomFilter *bf = NULL;
-    FencePointer *fp = NULL;
-    int num_pointers;
+//    int size;
+//    BloomFilter *bf = NULL;
+//    FencePointer *fp = NULL;
+//    int num_pointers;
     //std::string run = my_layer.merge(size, bf);
     //read_file(run, size);
 }
 
 void main_test(){
     Tree my_tree;
-    std::ifstream file ("workload_20_1.txt");
+    std::ifstream file ("workload_range.txt");
     char action;
     int key, value;
     
-    std::ofstream out("out.txt");
+    std::ofstream out("out_range.txt");
     std::streambuf *coutbuf = std::cout.rdbuf(); //save old buf
     std::cout.rdbuf(out.rdbuf()); //redirect std::cout to out.txt!
 
@@ -178,7 +178,16 @@ void main_test(){
             }else if (action == 'd') {
                 file >> key;
                 my_tree.del(key);
-            }else {
+            }else if (action == 'r'){
+                int low, high;
+                file >> low;
+                file >> high;
+                std::vector<KVpair> res = my_tree.range(low, high);
+                for(int i = 0; i < res.size(); i++){
+                    std::cout << res.at(i).key << ":"<<res.at(i).value<<"  ";
+                }
+                std::cout<<std::endl;
+            }else{
                 std::cout << "Error";
             }
         }
@@ -191,6 +200,19 @@ void main_test(){
     }
 }
 
+void range_test(){
+    Tree my_tree;
+    for(int i = 0; i < 400; i+=2){
+        my_tree.put(i, i-1);
+    }
+    std::vector<KVpair> res = my_tree.range(100, 150);
+    for(int i = 0; i < res.size(); i++){
+        std::cout << res.at(i).key << ":"<<res.at(i).value<<"  ";
+    }
+    std::cout<<std::endl;
+    
+}
+
 
 int main(int argc, const char * argv[]) {
     //merge_test_file();
@@ -200,6 +222,7 @@ int main(int argc, const char * argv[]) {
     //create_file();
     main_test();
     //tree_test();
+    //range_test();
 }
 
 

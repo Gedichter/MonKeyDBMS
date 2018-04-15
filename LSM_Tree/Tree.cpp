@@ -9,6 +9,7 @@
 #include "Tree.hpp"
 #include "LSM.hpp"
 #include <cmath>
+#include <unordered_map>
 
 Tree::Tree(){
     Layer layer;
@@ -35,7 +36,7 @@ bool Tree::bufferFlush(){
  */
 bool Tree::layerFlush(Layer &low, Layer &high){
     int num_pointers = 0;
-    int size = 0;
+    unsigned long size = 0;
     BloomFilter *bf = NULL;
     FencePointer *fp = NULL;
     std::string new_run = low.merge(size, bf, fp, num_pointers);
@@ -51,7 +52,6 @@ void Tree::flush(){
             level += 1;
         }
         if(goOn){
-            //TODO: change to getter function
             Layer layer;
             layer.set_rank(layers.size());
             layers.push_back(layer);
@@ -86,6 +86,30 @@ bool Tree::get(int key, int& value){
             }
     }
     return false;
+};
+
+
+/**
+ return the all the key value pairs within the range
+ @params low : include
+ high : not include
+ return vector of the key-value pair
+ */
+std::vector<KVpair> Tree::range(int low, int high){
+    std::unordered_map<int, KVpair> result_buffer;
+    buffer.range(low, high, result_buffer);
+    for(int i = 0; i < layers.size(); i++){
+        layers.at(i).range(low, high, result_buffer);
+    }
+    std::vector<KVpair> result;
+    for (auto const& x : result_buffer)
+    {
+        KVpair kv = x.second;
+        if(!kv.del){
+            result.push_back(kv);
+        }
+    }
+    return result;
 };
 
 void Tree::del(int key){

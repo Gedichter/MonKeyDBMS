@@ -134,15 +134,13 @@ bool Buffer::del(int key){
     return false;
 };
 
-bool Buffer::range(int low, int high, std::vector<KVpair> &res){
-    bool found = false;
+void Buffer::range(int low, int high, std::unordered_map<int, KVpair>& res){
     for(int i = 0; i < size; i++){
-        if(data[i].key < high && data[i].key >= low && data[i].del == false){
-            res.push_back(data[i]);
-            found = true;
+        int key = data[i].key;
+        if(key < high && key >= low){
+            res[key] = data[i];
         }
     }
-    return found;
 }
 
 void Buffer::sort(){
@@ -228,7 +226,7 @@ std::string Layer::get_name(int nthRun){
  @param size stores the size of the resulting run
  @return the name of the file of the new run
  */
-std::string Layer::merge(int &size, BloomFilter*& bf, FencePointer*& fp, int &num_pointers){
+std::string Layer::merge(unsigned long &size, BloomFilter*& bf, FencePointer*& fp, int &num_pointers){
     //read files and set index
     KVpair *read_runs[parameters::NUM_RUNS];
     int* indexes = new int[parameters::NUM_RUNS];
@@ -308,7 +306,7 @@ std::string Layer::merge(int &size, BloomFilter*& bf, FencePointer*& fp, int &nu
  size the size of the new run
  @return when true, the layer has reached its limit
  */
-bool Layer::add_run(std::string run, int size, BloomFilter* bf, FencePointer* fp, int num_pointers){
+bool Layer::add_run(std::string run, unsigned long size, BloomFilter* bf, FencePointer* fp, int num_pointers){
     std::string newName = get_name(current_run);
     if(rename(run.c_str(), newName.c_str()) != 0){
         std::cout << "rename failed"<<std::endl;
@@ -324,26 +322,13 @@ bool Layer::add_run(std::string run, int size, BloomFilter* bf, FencePointer* fp
 
 
 /**
- a basic implementation of get
- @return 1: found
- 0: not found
- -1: (latest version)deleted, which means no need to go on searching
+Check if the key is in the run
+ 
+ @param key The key to check
+value the value associated with the key
+ index: the index number of the run in the level
+ @return 1:found, 0:not found, -1:deleted
  */
-int Layer::get(int key, int& value){
-    for(int i = current_run-1; i >= 0; i--){
-        if(rank >= parameters::LEVELWITHBF){
-            int c = check_run(key, value, i);
-            if(c!=0) return c;
-        }else{
-            if(filters[i]->possiblyContains(key)){
-                int c = check_run(key, value, i);
-                if(c!=0) return c;
-            }
-        }
-    }
-    return 0;
-};
-
 int Layer::check_run(int key, int& value, int index){
     //indexes for the fence pointer
     unsigned long int offset = 0;
@@ -360,7 +345,7 @@ int Layer::check_run(int key, int& value, int index){
         if(!valid) return 0;
     }
     //read the needed page from the file
-    int read_size = run_size[index];
+    unsigned long read_size = run_size[index];
     if(valid){
         read_size = std::min(parameters::KVPAIRPERPAGE, (run_size[index]-offset));
     }
@@ -384,9 +369,77 @@ int Layer::check_run(int key, int& value, int index){
     return 0;
 }
 
+/**
+ a basic implementation of get
+ @return 1: found
+ 0: not found
+ -1: (latest version)deleted, which means no need to go on searching
+ */
+int Layer::get(int key, int& value){
+    for(int i = current_run-1; i >= 0; i--){
+        if(rank >= parameters::LEVELWITHBF){
+            int c = check_run(key, value, i);
+            if(c!=0) return c;
+        }else{
+            if(filters[i]->possiblyContains(key)){
+                int c = check_run(key, value, i);
+                if(c!=0) return c;
+            }
+        }
+    }
+    return 0;
+};
 
-bool range(int low, int high, std::vector<KVpair> *res);
+/**
+ Do range query on the whole run
+ */
+void Layer::range(int low, int high, std::unordered_map<int, KVpair>& range_buffer){
+    for(int i = current_run-1; i >= 0; i--){
+        range_run(low, high, range_buffer, i);
+    }
+};
 
+/**
+ Do range query on a run
+ */
+void Layer::range_run(int low, int high, std::unordered_map<int, KVpair>& range_buffer, int index){
+    std::vector<int> offsets;
+    std::vector<unsigned long> read_sizes;
+    
+    //check the fence pointer
+    if(pointers[index] != NULL){
+        for(int i = 0; i < pointer_size[index]; i++){
+            if(!(high <= pointers[index][i].min || low > pointers[index][i].max)){
+                offsets.push_back(i*parameters::KVPAIRPERPAGE);
+                read_sizes.push_back(std::min(parameters::KVPAIRPERPAGE, (run_size[index]-offsets.back())));
+            }
+        }
+    }
+    if(offsets.empty()){
+        offsets.push_back(0);
+        read_sizes.push_back(run_size[index]);
+    }
+    
+    //read the needed page from the file
+    for(int i = 0; i < offsets.size(); i++){
+        int offset = offsets.at(i);
+        unsigned long read_size = read_sizes.at(i);
+        KVpair* curRun = new KVpair[read_size];
+        std::ifstream inStream(get_name(index), std::ios::binary);
+        inStream.seekg(offset*sizeof(KVpair));
+        inStream.read((char *)curRun, read_size*sizeof(KVpair));
+        inStream.close();
+        //TODO: change to binary search
+        for(int j = 0; j < read_size; j++){
+            int key = curRun[j].key;
+            if(key < high && key >= low && range_buffer.find(key) == range_buffer.end()){
+                range_buffer[key] = curRun[j];
+            }
+        }
+        delete[] curRun;
+    }
+
+}
 
 
 
