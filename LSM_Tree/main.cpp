@@ -184,7 +184,7 @@ void main_test(){
                 file >> high;
                 std::vector<KVpair> res = my_tree.range(low, high);
                 for(int i = 0; i < res.size(); i++){
-                    std::cout << res.at(i).key << ":"<<res.at(i).value<<"  ";
+                    std::cout << res.at(i).key << ":"<<res.at(i).value<<" ";
                 }
                 std::cout<<std::endl;
             }else{
