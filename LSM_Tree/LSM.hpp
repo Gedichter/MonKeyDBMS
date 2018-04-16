@@ -16,6 +16,7 @@
 #include <iostream>
 #include <unordered_map>
 #include "Bloom_Filter.hpp"
+#include <math.h>
 
 struct KVpair{
     int key;
@@ -33,8 +34,8 @@ struct FencePointer{
 
 namespace parameters
 {
-    const unsigned int BUFFER_CAPACITY = 128;
-    const unsigned int SIZE_RATIO = 8;
+    const unsigned int BUFFER_CAPACITY = 1024;
+    const unsigned int SIZE_RATIO = 4;
     const unsigned int NUM_RUNS = SIZE_RATIO;
     const double FPRATE0 = 0.001;
     /*
@@ -42,7 +43,9 @@ namespace parameters
      Unit: Bytes
      */
     const unsigned long int KVPAIRPERPAGE = 4096/sizeof(KVpair);
-    const int LEVELWITHBF = 8;
+    const double FPTHRESHOLD = 0.8;
+    const int LEVELWITHBF = (int)log(FPTHRESHOLD/FPRATE0)/log(parameters::SIZE_RATIO);
+    
     // ... other related constants
 }
 
@@ -78,6 +81,7 @@ public:
     bool del(int key);
     void range(int low, int high, std::unordered_map<int, KVpair>& range_buffer);
     std::string merge(unsigned long &size, BloomFilter*& bf, FencePointer*& fp, int &num_pointers);
+    std::string pagewise_merge(unsigned long &size, BloomFilter*& bf, FencePointer*& fp, int &num_pointers);
     bool add_run_from_buffer(Buffer &buffer);
     bool add_run(std::string run, unsigned long size, BloomFilter* bf, FencePointer* fp, int num_pointers);
     void set_rank(int r);

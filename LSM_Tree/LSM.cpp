@@ -268,6 +268,10 @@ std::string Layer::merge(unsigned long &size, BloomFilter*& bf, FencePointer*& f
             }
         }
     }
+    //free space for intermediate storage
+    for(int i = 0; i < parameters::NUM_RUNS; i++){
+        delete [] read_runs[i];
+    }
     //set the new size, create array
     size = run_buffer.size();
     KVpair* new_run = new KVpair[size];
@@ -278,8 +282,10 @@ std::string Layer::merge(unsigned long &size, BloomFilter*& bf, FencePointer*& f
     new_file.write((char*)new_run, size*sizeof(KVpair));
     new_file.close();
     //create bloom filter TODO: change to create_bloom_filter function!!
+    //Here use the formula from the paper to calculate the fp rate for each level
+    double fprate = parameters::FPRATE0*pow(parameters::SIZE_RATIO, rank);
     if(rank < parameters::LEVELWITHBF-1){
-        bf = new BloomFilter(size, parameters::FPRATE0*pow(parameters::SIZE_RATIO, rank));
+        bf = new BloomFilter(size, fprate);
         for(int i = 0; i < size; i++){
             bf->add(new_run[i].key);
         }
@@ -291,11 +297,121 @@ std::string Layer::merge(unsigned long &size, BloomFilter*& bf, FencePointer*& f
     //reset the layer, free the dynamic memory
     reset();
     delete[] indexes;
-    for(int i = 0; i < parameters::NUM_RUNS; i++){
-        delete [] read_runs[i];
-    }
     delete [] new_run;
     
+    return name;
+};
+
+/**
+ Merge all runs to one run in this level
+ NOTE: Can't use heap to do the merge sort because we need to maintain the order of runs to know
+ which are the newest values
+ Use temp vector to store the merged result then write to file: minimize number of I/O
+ @param size stores the size of the resulting run
+ @return the name of the file of the new run
+ */
+std::string Layer::pagewise_merge(unsigned long &new_run_size, BloomFilter*& bf, FencePointer*& fp, int &num_pointers){
+    //read files and set index
+    KVpair read_runs[parameters::NUM_RUNS][parameters::KVPAIRPERPAGE];
+    int read_runs_length[parameters::NUM_RUNS] = {0};
+    int current_read_length[parameters::NUM_RUNS] = {0};
+    for(int i = 0; i < parameters::NUM_RUNS; i++){
+        //TODO: change to an array of open files
+        std::ifstream inStream(get_name(i), std::ios::binary);
+        int read_length = std::min(parameters::KVPAIRPERPAGE, run_size[i] - read_runs_length[i]);
+        current_read_length[i] = read_length;
+        inStream.read((char*)read_runs[i], read_length*sizeof(KVpair));
+        read_runs_length[i] += read_length;
+        inStream.close();
+    }
+    
+    //set up the file to write
+    std::string name = "run_" + std::to_string(rank) + "_temp";
+    std::ofstream new_file(name, std::ios::binary);
+    
+    //set up bloom filter and fence pointer for the new run
+    unsigned long size_ceiling = 0;
+    for(int i = 0; i < parameters::NUM_RUNS; i++) size_ceiling += run_size[i];
+    double fprate = parameters::FPRATE0*pow(parameters::SIZE_RATIO, rank);
+    if(rank < parameters::LEVELWITHBF-1) bf = new BloomFilter(size_ceiling, fprate);
+    std::vector<FencePointer> Fence_buffer;
+    
+    //perform merge
+    int current_positions[parameters::NUM_RUNS] = {0}; //current position in the page
+    KVpair merge_buffer[parameters::KVPAIRPERPAGE];
+    int index_merge_buffer = 0;
+    int ct = parameters::NUM_RUNS; //the count of active arrays
+    int min;
+    unsigned long new_run_count = 0;
+    while(ct > 0){
+        std::vector<int> indexes_min_run;
+        min = INT_MAX;
+        //there is no duplicate inside each run, scan from the old runs to the new runs
+        for(int i = 0; i < parameters::NUM_RUNS; i++){
+            if(current_positions[i] >= 0){
+                if(read_runs[i][current_positions[i]].key < min){
+                    min = read_runs[i][current_positions[i]].key;
+                    indexes_min_run.clear();
+                    indexes_min_run.push_back(i);
+                }else if (read_runs[i][current_positions[i]].key == min){
+                    indexes_min_run.push_back(i);
+                }
+            }
+        }
+        int min_index = indexes_min_run.back();
+        //write to merge buffer
+        merge_buffer[index_merge_buffer] = read_runs[min_index][current_positions[min_index]];
+        if(bf != NULL) bf->add(merge_buffer[index_merge_buffer].key);
+        index_merge_buffer += 1;
+        new_run_count += 1;
+        if(index_merge_buffer == parameters::KVPAIRPERPAGE){
+            //merge buffer is full, write to file and reset the merge buffer
+            FencePointer fp_temp;
+            fp_temp.min = merge_buffer[0].key;
+            fp_temp.max = merge_buffer[index_merge_buffer-1].key;
+            Fence_buffer.push_back(fp_temp);
+            new_file.write((char*)merge_buffer, index_merge_buffer*sizeof(KVpair));
+            index_merge_buffer = 0;
+        }
+        for(int i = 0; i < indexes_min_run.size(); i++){
+            int cur_index = indexes_min_run.at(i);
+            current_positions[cur_index] += 1;
+            if(current_positions[cur_index] >= current_read_length[cur_index]){
+                //Current page is used up for this page
+                //set index to -1 when the the last element of the array is used
+                if(read_runs_length[cur_index] >= run_size[cur_index]){
+                    current_positions[cur_index] = -1;
+                    ct -= 1;
+                }else{
+                    current_positions[cur_index] = 0;
+                    std::ifstream inStream(get_name(cur_index), std::ios::binary);
+                    inStream.seekg(read_runs_length[cur_index]*sizeof(KVpair));
+                    int read_length = std::min(parameters::KVPAIRPERPAGE, run_size[cur_index] - read_runs_length[cur_index]);
+                    inStream.read((char*)read_runs[cur_index], read_length*sizeof(KVpair));
+                    current_read_length[cur_index] = read_length;
+                    read_runs_length[cur_index] += read_length;
+                    inStream.close();
+                }
+            }
+        }
+    }
+    //write the remaining part in the merge_buffer to the result
+    FencePointer fp_temp;
+    fp_temp.min = merge_buffer[0].key;
+    fp_temp.max = merge_buffer[index_merge_buffer-1].key;
+    Fence_buffer.push_back(fp_temp);
+    new_file.write((char*)merge_buffer, index_merge_buffer*sizeof(KVpair));
+    new_file.close();
+    
+    //create fence pointer
+    num_pointers = Fence_buffer.size();
+    new_run_size = new_run_count;
+    FencePointer* fparray = new FencePointer[num_pointers];
+    std::copy(Fence_buffer.begin(), Fence_buffer.end(), fparray);
+    fp = fparray;
+    
+    //reset the layer, free the dynamic memory
+    reset();
     return name;
 };
 
@@ -317,7 +433,7 @@ bool Layer::add_run(std::string run, unsigned long size, BloomFilter* bf, FenceP
     pointers[current_run] = fp;
     pointer_size[current_run] = num_pointers;
     current_run += 1;
-    return current_run == parameters::NUM_RUNS;
+    return current_run >= parameters::NUM_RUNS;
 }
 
 

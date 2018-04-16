@@ -55,7 +55,7 @@ void bloomfilter_test(){
     }
 }
 
-void read_file(std::string name, int size){
+void read_file(std::string name, unsigned long size){
     std::ifstream file(name, std::ios::binary);
     KVpair* array = new KVpair[size];
     file.read((char*)array, size*sizeof(KVpair));
@@ -83,7 +83,7 @@ void create_file(){
 
 void tree_test(){
     Tree my_tree;
-    for(int i = 0; i < 400; i++){
+    for(int i = 0; i < 4000; i++){
         my_tree.put(i, i-1);
     }
     for(int i = 0; i < 400; i+=2){
@@ -121,32 +121,59 @@ void tree_test(){
 //    }
 }
 
+void tree_test_2(){
+    Tree my_tree;
+    for(int i = 0; i < 10; i++){
+        my_tree.put(i, i-1);
+    }
+    for(int i = 5; i < 15; i+=1){
+        my_tree.del(i);
+    }
+    int query = NULL;
+    for(int i = 0; i < 15; i++){
+        if(my_tree.get(i, query)){
+            std::cout << "The new value is " <<query<<std::endl;
+        }else{
+            std::cout << "Point lookup not found "<<std::endl;
+        }
+    }
+    //    for(int i = 0; i < my_tree.layers.size();i++){
+    //        std::cout<<"the layer "<<i<<std::endl;
+    //        for(int j = 0; j < parameters::NUM_RUNS; j++){
+    //            if(my_tree.layers.at(i).run_size[j] != 0){
+    //                std::cout<<"In the file "<<my_tree.layers.at(i).get_name(j)<<std::endl;
+    //                read_file(my_tree.layers.at(i).get_name(j), my_tree.layers.at(i).run_size[j]);
+    //            }
+    //        }
+    //    }
+}
 
-void merge_test_file(){
-    Buffer my_buffer;
-    my_buffer.put(4,8);
-    my_buffer.put(2,4);
-    my_buffer.put(1,90);
-    Layer my_layer;
-    my_buffer.sort();
-    my_layer.add_run_from_buffer(my_buffer);
-    my_buffer.put(4,5);
-    my_buffer.put(5,8);
-    my_buffer.put(20,9);
-    my_buffer.sort();
-    my_layer.add_run_from_buffer(my_buffer);
-    my_buffer.put(8,3);
-    my_buffer.put(12,34);
-    my_buffer.put(21,7);
-    my_buffer.sort();
-    my_layer.add_run_from_buffer(my_buffer);
-//    int size;
+
+//void merge_test_file(){
+//    Buffer my_buffer;
+//    my_buffer.put(4,8);
+//    my_buffer.put(2,4);
+//    my_buffer.put(1,90);
+//    Layer my_layer;
+//    my_buffer.sort();
+//    my_layer.add_run_from_buffer(my_buffer);
+//    my_buffer.put(4,5);
+//    my_buffer.put(5,8);
+//    my_buffer.put(20,9);
+//    my_buffer.sort();
+//    my_layer.add_run_from_buffer(my_buffer);
+//    my_buffer.put(8,3);
+//    my_buffer.put(12,34);
+//    my_buffer.put(21,7);
+//    my_buffer.sort();
+//    my_layer.add_run_from_buffer(my_buffer);
+//    unsigned long size;
 //    BloomFilter *bf = NULL;
 //    FencePointer *fp = NULL;
 //    int num_pointers;
-    //std::string run = my_layer.merge(size, bf);
-    //read_file(run, size);
-}
+//    std::string run = my_layer.pagewise_merge(size, bf, fp, num_pointers);
+//    read_file(run, size);
+//}
 
 void main_test(){
     Tree my_tree;
@@ -194,7 +221,7 @@ void main_test(){
         high_resolution_clock::time_point t2 = high_resolution_clock::now();
         auto duration = duration_cast<microseconds>( t2 - t1 ).count();
         std::cout << "-----------------------------------------------------" << std::endl;
-        std::cout << "The elapsed time is " << duration << std::endl;
+        std::cout << "The elapsed time is " << duration << " microseconds" << std::endl;
         file.close();
         //std::cout << "All operations finished"<<std::endl;
     }
@@ -212,6 +239,7 @@ void range_test(){
     std::cout<<std::endl;
     
 }
+
 
 
 int main(int argc, const char * argv[]) {
