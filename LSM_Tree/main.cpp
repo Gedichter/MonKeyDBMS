@@ -175,56 +175,61 @@ void tree_test_2(){
 //    read_file(run, size);
 //}
 
-void main_test(){
-    Tree my_tree;
-    std::ifstream file ("workload_range.txt");
+void workload(Tree* my_tree, std::string file_name){
+    std::ifstream file(file_name);
     char action;
     int key, value;
-    
-    std::ofstream out("out_range.txt");
-    std::streambuf *coutbuf = std::cout.rdbuf(); //save old buf
-    std::cout.rdbuf(out.rdbuf()); //redirect std::cout to out.txt!
-
-    high_resolution_clock::time_point t1 = high_resolution_clock::now();
+    std::string out_name = "serial_out_" + file_name;
+    std::ofstream output(out_name);
     if (file.is_open()) {
         while (!file.eof()) {
             file >> action;
             if (action == 'p') {
                 file >> key;
                 file >> value;
-                my_tree.put(key, value);
-            }
-            else if (action == 'g') {
+                my_tree->put(key, value);
+            }else if (action == 'g') {
                 file >> key;
                 int query = NULL;
-                if(my_tree.get(key, query)){
-                    std::cout <<query<<std::endl;
+                if(my_tree->get(key, query)){
+                    output<<query<<std::endl;
                 }else{
-                    std::cout<<std::endl;
+                    output<<std::endl;
                 }
             }else if (action == 'd') {
                 file >> key;
-                my_tree.del(key);
+                my_tree->del(key);
             }else if (action == 'r'){
                 int low, high;
                 file >> low;
                 file >> high;
-                std::vector<KVpair> res = my_tree.range(low, high);
+                std::vector<KVpair> res = my_tree->range(low, high);
                 for(int i = 0; i < res.size(); i++){
-                    std::cout << res.at(i).key << ":"<<res.at(i).value<<" ";
+                    output<< res.at(i).key << ":"<<res.at(i).value<<" ";
                 }
-                std::cout<<std::endl;
+                output<<std::endl;
             }else{
-                std::cout << "Error";
+                output<< "Error";
             }
         }
-        high_resolution_clock::time_point t2 = high_resolution_clock::now();
-        auto duration = duration_cast<microseconds>( t2 - t1 ).count();
-        std::cout << "-----------------------------------------------------" << std::endl;
-        std::cout << "The elapsed time is " << duration << " microseconds" << std::endl;
         file.close();
-        //std::cout << "All operations finished"<<std::endl;
     }
+    output.close();
+}
+
+void main_test(){
+    Tree* my_tree = new Tree();
+    std::string workload0 = "workload_10_1_heavy_1.txt";
+    std::string workload1 = "workload_10_1_heavy_2.txt";
+    
+    high_resolution_clock::time_point t1 = high_resolution_clock::now();
+    
+    workload(my_tree, workload0);
+    workload(my_tree, workload1);
+    high_resolution_clock::time_point t2 = high_resolution_clock::now();
+    auto duration = duration_cast<microseconds>( t2 - t1 ).count();
+    std::cout << "-------------------single-thread---------------------" << std::endl;
+    std::cout << "The elapsed time is " << duration << " microseconds" << std::endl;
 }
 
 void range_test(){
